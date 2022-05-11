@@ -21,9 +21,15 @@ library(WeightIt)
 library(GLDEX)
 library(ExPanDaR)
 library(Matching)
-#library(MatchIt)
+library(FactoMineR)
+library(factoextra)
+library(gridExtra)
+library(ggdendro)
 
-#Импорт
+
+# ПОДГОТОВКА ДАННЫХ 
+
+#Импорт файлов
 
 Data_1.1 <- read_excel("R_files/1.1.xlsx")
 Data_2.1 <- read_excel("R_files/2.1.xlsx")
@@ -132,10 +138,7 @@ Data$GRO_21 <- Data$REV_21/Data$REV_20*100-100
 
 Data$industry <- Data$ind
 Data <- Data[-which( colnames(Data)=="ind")]
-
-
 Data <- dplyr::select(Data, -n2, -age2)
-
 
 # Чистим выбросы
 a1_15 <- quantile(Data$NWC_15, 0.01)
@@ -303,8 +306,6 @@ k2_20 <- quantile(Data$ALQ_20, 0.99)
 k1_21 <- quantile(Data$ALQ_21, 0.01)
 k2_21 <- quantile(Data$ALQ_21, 0.99)
 
-
-
 Data <- filter(Data, NWC_15 > a1_15 & NWC_15 < a2_15)
 Data <- filter(Data, NWC_16 > a1_16 & NWC_16 < a2_16)
 Data <- filter(Data, NWC_17 > a1_17 & NWC_17 < a2_17)
@@ -411,10 +412,7 @@ data <- Data %>% pivot_longer(
   names_pattern = "(.*)_(..)"
 )
 
-
 data <- na.omit(data)
-
-summary(data$industry)
 
 #Добавляем факторные переменные и логарифмы где это нужно
 
@@ -429,7 +427,38 @@ data$REV <- log(data$REV)
 data$SIZ <- log(data$TAS)
 
 
-#КОРРЕЛЯЦИОННЫЙ АНАЛИЗ
+# ПЕРВИЧНЫЙ АНАЛИЗ ДАННЫХ
+
+#Графики
+
+#для медианных значений и квантилей
+ggplot(data, aes(x=Year, y = ROA, fill=Year)) + geom_boxplot(outlier.shape = NA) + xlab("") + ylab("ROA") + labs(fill = "Год") + scale_y_continuous(limits = c(-0.25, 0.5)) + theme(text = element_text(size = 20))
+ggplot(data, aes(x=Year, y = ROE, fill=Year)) + geom_boxplot(outlier.shape = NA) + xlab("") + ylab("ROE") + labs(fill = "Год") + scale_y_continuous(limits = c(-0.5, 1)) + theme(text = element_text(size = 20))
+ggplot(filter(data, NWC > quantile(data$NWC, 0.1) & NWC < quantile(data$NWC, 0.9)), aes(x=Year, y = NWC, fill=Year)) + geom_boxplot(outlier.shape = NA) + xlab("") + ylab("NWC") + labs(fill = "Год")+ theme(text = element_text(size = 20)) + scale_y_continuous(limits = c(1500000, 60000000))
+ggplot(data, aes(x=Year, y = REV, fill=Year)) + geom_boxplot(outlier.shape = NA) + xlab("") + ylab("ln(Revenue)") + labs(fill = "Год") + theme(text = element_text(size = 20)) + scale_y_continuous(limits = c(13, 23))
+ggplot(data, aes(x=Year, y = DSO, fill=Year)) + geom_boxplot(outlier.shape = NA) + xlab("") + ylab("DSO") + labs(fill = "Год") + theme(text = element_text(size = 20)) + scale_y_continuous(limits = c(0, 230))
+ggplot(data, aes(x=Year, y = LEV, fill=Year)) + geom_boxplot(outlier.shape = NA) + xlab("") + ylab("L/E") + labs(fill = "Год")+ theme(text = element_text(size = 20)) + scale_y_continuous(limits = c(0, 2.5))
+ggplot(data, aes(x=Year, y = CCE, fill=Year)) + geom_boxplot() + xlab("") + ylab("Equity Ratio") + labs(fill = "Год")+ theme(text = element_text(size = 20))
+ggplot(data, aes(x=Year, y = FLQ, fill=Year)) + geom_boxplot(outlier.shape = NA) + xlab("") + ylab("Quick Ratio") + labs(fill = "Год")+ theme(text = element_text(size = 20)) + scale_y_continuous(limits = c(0, 5))
+ggplot(data, aes(x=Year, y = ALQ, fill=Year)) + geom_boxplot(outlier.shape = NA) + xlab("") + ylab("Cash Ratio") + labs(fill = "Год")+ theme(text = element_text(size = 20)) + scale_y_continuous(limits = c(0, 1.25))
+ggplot(data, aes(x=Year, y = GRO, fill=Year)) + geom_boxplot(outlier.shape = NA) + xlab("") + ylab("Growth") + labs(fill = "Год")+ theme(text = element_text(size = 20)) + scale_y_continuous(limits = c(-60, 80))
+
+#для средних
+means <- data %>% group_by(Year) %>% summarise(ROA = mean(ROA), ROE = mean(ROE), NWC = mean(NWC), SIZ = mean(SIZ), REV = mean(REV), FLQ = mean(FLQ), ALQ = mean(ALQ), GRO = mean(GRO), DSO = mean(DSO), CCE = mean(CCE), LEV = mean(LEV))
+
+ggplot(means, aes(x=Year, y = ROA, fill=Year)) + geom_col() + xlab("") + ylab("mean ROA") + labs(fill = "Год") + scale_y_continuous(limits = c(0, 0.2)) + theme(text = element_text(size = 20))
+ggplot(means, aes(x=Year, y = ROE, fill=Year))+ geom_col() + xlab("") + ylab("mean ROE") + labs(fill = "Год") + scale_y_continuous(limits = c(0, 0.4)) + theme(text = element_text(size = 20))
+ggplot(means, aes(x=Year, y = NWC, fill=Year)) + geom_col() + xlab("") + ylab("mean NWC") + labs(fill = "Год")+ theme(text = element_text(size = 20))
+ggplot(means, aes(x=Year, y = REV, fill=Year)) + geom_col() + xlab("") + ylab("mean ln(Revenue)") + labs(fill = "Год") + theme(text = element_text(size = 20))
+ggplot(means, aes(x=Year, y = DSO, fill=Year)) + geom_col() + xlab("") + ylab("mean DSO") + labs(fill = "Год") + theme(text = element_text(size = 20))
+ggplot(means, aes(x=Year, y = LEV, fill=Year)) + geom_col() + xlab("") + ylab("mean L/E") + labs(fill = "Год")+ theme(text = element_text(size = 20))
+ggplot(means, aes(x=Year, y = CCE, fill=Year)) + geom_col() + xlab("") + ylab("mean Equity Ratio") + labs(fill = "Год")+ theme(text = element_text(size = 20))
+ggplot(means, aes(x=Year, y = FLQ, fill=Year)) + geom_col() + xlab("") + ylab("mean Quick Ratio") + labs(fill = "Год")+ theme(text = element_text(size = 20)) + scale_y_continuous(limits = c(0, 3))
+ggplot(means, aes(x=Year, y = ALQ, fill=Year)) + geom_col() + xlab("") + ylab("mean Cash Ratio") + labs(fill = "Год")+ theme(text = element_text(size = 20)) + scale_y_continuous(limits = c(0, 0.8))
+ggplot(means, aes(x=Year, y = GRO, fill=Year)) + geom_col() + xlab("") + ylab("mean Growth") + labs(fill = "Год")+ theme(text = element_text(size = 20))
+ggplot(means, aes(x=Year, y = SIZ, fill=Year)) + geom_col() + xlab("") + ylab("mean Size") + labs(fill = "Год")+ theme(text = element_text(size = 20))
+
+#Корреляционный анализ
 Data_f <- dplyr::select(data, ROA, ROE, SIZ, REV, LEV, GRO, DSO,CCE, ALQ, FLQ, NWC, NPR)
 data_f <- na.omit(Data_f)
 names(data_f) <- c('ROA', 'ROE', 'Ln(Assets)', 'Ln(Revenue)', 'L/E', 'Growth', 'DSO','Equity Ratio', 'Cash Ratio', 'Quick Ratio', 'NWC', 'Net Profit')
@@ -473,18 +502,18 @@ ggheatmap +
 data_1 <- dplyr::select(data, ROA, ROE, SIZ, LEV, GRO, REV, DSO, CCE, FLQ, ALQ, PR, NWC, industry, covid, i, Year)
 data_1 <- na.omit(data_1)
 
+
 # МОДЕЛИ
 
 # Фиктивная перерменная для 20 года
 # обычный МНК
 mod1 <- plm(ROA ~ SIZ + LEV + GRO + DSO + CCE + FLQ + ALQ + industry + covid, data = data_1, index = c("i","Year"), model="pooling")
-summary(mod1)
 
 mod <- lm(ROA ~ SIZ + LEV + GRO + DSO + CCE + FLQ + ALQ + industry + covid, data = data_1)
 summary(mod)
 bptest(mod_1)
 resettest(mod_1, power = 2)
-
+# Степени не пропущены
 vif(mod_1)
 
 #  Модель с фиксированными эффектами для i
@@ -593,7 +622,6 @@ hitmiss(m_logit)
 lrtest(m_logit)
 
 plotROC(actuals = data_log$cov, fitted(m_logit))
-?plotROC
 
 stargazer(m_logit, 
           title="Logit model, clustered SEs", type="text", out = "table1.doc", digits=3)
@@ -645,6 +673,8 @@ Data_P$diff <- Data_P$ROA_20-Data_P$ROA_21
 ggplot(data = Data_P, aes(industry,diff)) + scale_x_continuous(breaks = seq(1, 16, 1)) +labs(x = 'Отрасли', y = 'Разность прогнозируемой и реальной рентабельности')+ theme(text = element_text(size = 20)) + geom_bar(stat="identity", fill = 'cadetblue2')
 
 
+#ТЕСТЫ НА НАДЕЖНОСТЬ
+
 # Альтернативная зависимая переменная
 
 # Фиктивная перерменная для 20 года
@@ -669,11 +699,8 @@ stargazer(mod1, mod2, mod3,
           column.labels=c("Pooled OLS", "State FE", "St-Yr FE"), 
           digits=3, type="html", out = "table.doc")
 
-
-
 # Предположение о неоднородности в зависимости от отрасли
 data_1$covI <- as.factor(as.numeric(as.character(data_1$covid))*as.numeric(as.character(data_1$industry)))
-summary(data_1$covI)
 
 # обычный МНК
 mod1 <- plm(ROE ~ SIZ + LEV + GRO + DSO + CCE + FLQ + ALQ + industry+ covid + covI, data = data_1, index = c("i","Year"), model="pooling")
@@ -695,7 +722,6 @@ stargazer(mod1, mod2, mod3,
           title="Panel regressions, clustered SEs", 
           column.labels=c("Pooled OLS", "State FE", "St-Yr FE"), 
           digits=3, type="html", out = "table.doc")
-
 
 # Регрессии с произведениями
 
@@ -729,7 +755,8 @@ stargazer(mod1, mod2, mod3,
           column.labels=c("Pooled OLS", "State FE", "St-Yr FE"), 
           digits=3, type="html", out = "table.doc")
 
-# МЭТЧИНГ
+# Мэтчинг
+
 X <- cbind(data_1$SIZ, data_1$LEV, data_1$GRO, data_1$DSO, data_1$CCE, data_1$FLQ, data_1$ALQ)
 X <- as.matrix(X)
 Mod <- Match(Y = data_1$ROA, X = X, Tr = (as.numeric(as.character(data_1$covid))), Weight = 2, version = "fast")
@@ -768,7 +795,6 @@ X13 <- as.matrix(cbind(data13$SIZ, data13$LEV, data13$GRO, data13$DSO, data13$CC
 X14 <- as.matrix(cbind(data14$SIZ, data14$LEV, data14$GRO, data14$DSO, data14$CCE, data14$FLQ, data14$ALQ))
 X15 <- as.matrix(cbind(data15$SIZ, data15$LEV, data15$GRO, data15$DSO, data15$CCE, data15$FLQ, data15$ALQ))
 X16 <- as.matrix(cbind(data16$SIZ, data16$LEV, data16$GRO, data16$DSO, data16$CCE, data16$FLQ, data16$ALQ))
-
 
 Mod1 <- Match(Y = data1$ROA, X = X1, Tr = (as.numeric(as.character(data1$covid))), Weight = 2, version = "fast")
 Mod2 <- Match(Y = data2$ROA, X = X2, Tr = (as.numeric(as.character(data2$covid))), Weight = 2, version = "fast")
@@ -811,7 +837,7 @@ match$p <- c(0.7,1,0.4,1,1,1,0.4,1,1,1,1,1,1,0.4,1,1)
 ggplot(data = match, aes(industry,estimate)) + scale_x_continuous(breaks = seq(1, 16, 1)) +labs(x = 'Отрасли', y = 'Оценки изменения ROA, полученные мэтчингом')+ theme(text = element_text(size = 20)) + geom_bar(stat="identity", alpha = match$p, fill = 'cadetblue2')+ scale_y_continuous(limits = c(-0.05, 0.01))
 
 
-# Разности и кластеризация
+#КЛАСТЕРИЗАЦИЯ
 
 Data_l <- as.data.frame(c(1:dim(Data)))
 Data_l$ROA <- Data$ROA_20-Data$ROA_19
@@ -827,11 +853,6 @@ Data_l$ALQ <- Data$ALQ_20-Data$ALQ_19
 Data_l$GRO <- Data$GRO_20-Data$GRO_19
 Data_l$TAS <- Data$TAS_20-Data$TAS_19
 Data_l$industry <- Data$industry
-
-library(FactoMineR)
-library(factoextra)
-library(gridExtra)
-library(ggdendro)
 
 summary(Data_l)
 k <- 7
@@ -893,9 +914,3 @@ summary(i_13$clust)
 summary(i_14$clust)
 summary(i_15$clust)
 summary(i_16$clust)
-
-
-
-
-
-
